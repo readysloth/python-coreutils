@@ -179,9 +179,7 @@ class TestSedSearch:
             ),
         ],
     )
-    def test_search_on_iter_string_command(
-        self, processable, command, flags, control_seq
-    ):
+    def test_search_on_iter_string_command(self, processable, command, flags, control_seq):
         result = list(sed.search(processable, command, flags))
         self.common_assertion(result, control_seq)
 
@@ -247,9 +245,7 @@ class TestSedSearch:
             )
         ],
     )
-    def test_search_on_iter_iterable_string_command(
-        self, processable, command, control_seq
-    ):
+    def test_search_on_iter_iterable_string_command(self, processable, command, control_seq):
         result = list(sed.search(processable, command))
         self.common_assertion(result, control_seq)
 
@@ -282,8 +278,6 @@ class TestSedSearch:
             )
         ],
     )
-    def test_search_on_iter_iterable_callable_command(
-        self, processable, command, control_seq
-    ):
+    def test_search_on_iter_iterable_callable_command(self, processable, command, control_seq):
         result = list(sed.search(processable, command))
         self.common_assertion(result, control_seq)

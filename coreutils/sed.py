@@ -20,15 +20,11 @@ class SedFlags(enum.Enum):
     I = INSENSITIVE  # noqa
 
 
-def match_string(
-    string: str, command: Union[str, Callable], flags: Optional[Set[SedFlags]] = None,
-) -> bool:
+def match_string(string: str, command: Union[str, Callable], flags: Optional[Set[SedFlags]] = None,) -> bool:
     if isinstance(command, str):
         pattern = command
         command = lambda text: re.search(
-            pattern=pattern,
-            string=text,
-            flags=re.IGNORECASE if flags and SedFlags.INSENSITIVE else 0,
+            pattern=pattern, string=text, flags=re.IGNORECASE if flags and SedFlags.INSENSITIVE else 0,
         )
 
     is_match = bool(command(string))
@@ -37,9 +33,7 @@ def match_string(
     return is_match
 
 
-def map_command_to_string(
-    string: str, command, flags: Optional[Set[SedFlags]] = None,
-) -> Tuple[str, bool]:
+def map_command_to_string(string: str, command, flags: Optional[Set[SedFlags]] = None,) -> Tuple[str, bool]:
     matched = False
     if isinstance(command, Iterable) and not isinstance(command, str):
         for cmd in command:
@@ -50,9 +44,7 @@ def map_command_to_string(
 
 
 def substitute(
-    to_process: Processable,
-    command: Union[Processor, Iterable[Processor]],
-    flags: Optional[Set[SedFlags]] = None,
+    to_process: Processable, command: Union[Processor, Iterable[Processor]], flags: Optional[Set[SedFlags]] = None,
 ):  # pylint: disable=unused-argument
     pass
 
@@ -84,9 +76,7 @@ def search(
                     doubled_if_match.append((element, match))
                 doubled_if_match.append((element, match))
             return doubled_if_match
-        return filter(
-            lambda line_tuple: line_tuple[1], filterable
-        )  # filtering out not matched
+        return filter(lambda line_tuple: line_tuple[1], filterable)  # filtering out not matched
 
     to_process = list(to_process)
 
