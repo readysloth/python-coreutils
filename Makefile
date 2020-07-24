@@ -15,3 +15,7 @@ lint:
 
 tests:
 	python -m pytest tests -vvv
+
+lock:
+	@rm -f poetry.lock
+	@poetry lock
