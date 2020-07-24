@@ -1,14 +1,14 @@
 import re
 import enum
-import typing
+import typing as t
 import pathlib
 import fileinput
 import itertools as it
 
 from collections.abc import Iterable
 
-Processable = typing.Union[typing.Iterable[str], pathlib.Path]
-Processor = typing.Union[str, typing.Callable]
+Processable = t.Union[t.Iterable[str], pathlib.Path]
+Processor = t.Union[str, t.Callable]
 
 class SedFlags(enum.Enum):
     GLOBAL = enum.auto()
@@ -23,9 +23,9 @@ class SedFlags(enum.Enum):
     I = INSENSITIVE
 
 def match_line(line:str,
-               command: typing.Union[str,
-                                     typing.Callable],
-               flags: typing.Set[SedFlags]=None) -> bool:
+               command: t.Union[str,
+                                     t.Callable],
+               flags: t.Optional[t.Set[SedFlags]]=None) -> bool:
     if isinstance(command, str):
         cmd = command
         if flags and SedFlags.INSENSITIVE:
@@ -39,9 +39,9 @@ def match_line(line:str,
 
     return is_match
 def map_command_to_line(line: str,
-                        command: typing.Iterable[typing.Union[str,
-                                                              typing.Callable]],
-                        flags: typing.Set[SedFlags]=None) -> bool:
+                        command: t.Iterable[t.Union[str,
+                                                              t.Callable]],
+                        flags: t.Optional[t.Set[SedFlags]]=None) -> bool:
 
     matched = False
     if isinstance(command, Iterable) and not isinstance(command, str):
@@ -52,38 +52,45 @@ def map_command_to_line(line: str,
     return (line, matched)
 
 def substitute(to_process: Processable,
-               command: typing.Union[Processor,
-                                     typing.Iterable[Processor]]=None,
-               flags: typing.Set[SedFlags]=None):
+               command: t.Union[Processor,
+                                     t.Iterable[Processor]],
+               flags: t.Optional[t.Set[SedFlags]]=None):
     pass
 
 def substitute_by_command(to_process: Processable,
                           command: str,
-                          flags: typing.List[SedFlags]=None):
+                          flags: t.Optional[t.List[SedFlags]]=None):
     pass
 
 def search(to_process: Processable,
-           command: typing.Union[Processor,
-                                 typing.Iterable[Processor]],
-           search_flags: typing.Set[SedFlags]=None) -> typing.Iterable[str]:
+           command: t.Union[Processor,
+                                 t.Iterable[Processor]],
+           search_flags: t.Optional[t.Set[SedFlags]]=None) -> t.Iterable[str]:
+
+    def preprocess(cmds):
+        return map(map_command_to_line,       # searching line 
+                        to_process,
+                        it.repeat(cmds),
+                        it.repeat(search_flags))
+
+    def filter_out_or_double(filterable):
+        if search_flags and SedFlags.PRINT in search_flags:
+            doubled_if_match = []
+            for element, match in filterable:
+                if match:
+                    doubled_if_match.append((element, match))
+                doubled_if_match.append((element, match))
+            return doubled_if_match
+        return filter(lambda line_tuple: line_tuple[1], filterable)    # filtering out not matched
 
     to_process = list(to_process)
             
+    preprocessed = None
     if isinstance(command, Iterable) and not isinstance(command, str):
         commands = list(command)
-        return map(lambda match_tuple: match_tuple[0],              # getting matched string
-                        filter(lambda line_tuple: line_tuple[1],    # filtering out not matched
-                               map(map_command_to_line,             # searching line 
-                                   to_process,
-                                   it.cycle([commands]),
-                                   it.cycle([search_flags]))))
+        preprocessed = preprocess(commands)
+    else:
+        preprocessed = preprocess(command)
 
-    return map(lambda match_tuple: match_tuple[0],                  # getting matched string
-                        filter(lambda line_tuple: line_tuple[1],    # filtering out not matched
-                               zip(to_process,                      # zipping with strings,
-                                                                    #   because we got only bool's
-                                   map(match_line,                  # filtering out not matched
-                                       to_process,
-                                       it.cycle([command]),
-                                       it.cycle([search_flags])))))
-
+    return map(lambda match_tuple: match_tuple[0],
+               filter_out_or_double(preprocessed))

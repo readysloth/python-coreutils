@@ -77,6 +77,17 @@ class TestSedSearch:
                                  'probably', 'the', 'most', 'important', 'in', 'sed',
                                  'and', 'has', 'a lot', 'of', 'different', 'options'],
                                 r'^\w{3}$',
+                                {sed.SedFlags.PRINT},
+                                ['The', 'the', 'sed', 'and', 'has', 'The',
+                                 's command', 'as', 'in', 'substitute', 'is',
+                                 'probably', 'the', 'most', 'important', 'in', 'sed',
+                                 'and', 'has', 'a lot', 'of', 'different', 'options']
+                             ),
+                            (
+                                ['The', 's command', 'as', 'in', 'substitute', 'is',
+                                 'probably', 'the', 'most', 'important', 'in', 'sed',
+                                 'and', 'has', 'a lot', 'of', 'different', 'options'],
+                                r'^\w{3}$',
                                 {sed.SedFlags.DELETE},
                                 ['s command', 'as', 'in', 'substitute', 'is',
                                  'probably', 'most', 'important', 'in',
