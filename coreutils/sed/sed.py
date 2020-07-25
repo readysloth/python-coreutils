@@ -1,32 +1,13 @@
-import enum
 import functools
 import itertools
 import pathlib
 import re
 from typing import Callable, Iterable, List, Optional, Set, Tuple, Union
 
+from coreutils.sed import SedException, SedFlags
+
 Processable = Union[Iterable[str], pathlib.Path, Iterable[pathlib.Path]]
 Processor = Union[str, Callable]
-
-
-class SedException(Exception):
-    def __init__(self, expression, message):
-        self.expression = expression
-        self.message = message
-        super(SedException, self).__init__()
-
-
-class SedFlags(enum.Enum):
-    GLOBAL = enum.auto()
-    PRINT = enum.auto()
-    EXECUTE = enum.auto()
-    INSENSITIVE = enum.auto()
-    DELETE = enum.auto()
-    g = GLOBAL
-    d = DELETE
-    p = PRINT
-    e = EXECUTE
-    I = INSENSITIVE  # noqa
 
 
 @functools.lru_cache(typed=True)
