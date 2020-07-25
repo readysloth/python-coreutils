@@ -1,3 +1,6 @@
+import pathlib
+import tempfile
+
 import pytest
 
 from coreutils import sed
@@ -45,8 +48,8 @@ class TestSedMisc:
     @pytest.mark.parametrize(
         'flags, expected',
         [
-            ({SedFlags.GLOBAL, SedFlags.PRINT}, False),
-            ({SedFlags.DELETE, SedFlags.EXECUTE, SedFlags.INSENSITIVE}, False),
+            (frozenset({SedFlags.GLOBAL, SedFlags.PRINT}), False),
+            (frozenset({SedFlags.DELETE, SedFlags.EXECUTE, SedFlags.INSENSITIVE}), False),
         ],
     )
     def test_match_with_several_flags(self, flags, expected):
@@ -183,6 +186,11 @@ class TestSedSearch:
         result = list(sed.search(processable, command, flags))
         self.common_assertion(result, control_seq)
 
+    @pytest.mark.parametrize('processable, command, flags', [(['a'], 'b', {sed.SedFlags.DELETE, sed.SedFlags.PRINT})])
+    def test_search_flags_error(self, processable, command, flags):
+        with pytest.raises(sed.SedException):
+            list(sed.search(processable, command, flags))
+
     @pytest.mark.parametrize(
         'processable, command, control_seq',
         [
@@ -280,4 +288,45 @@ class TestSedSearch:
     )
     def test_search_on_iter_iterable_callable_command(self, processable, command, control_seq):
         result = list(sed.search(processable, command))
+        self.common_assertion(result, control_seq)
+
+    @pytest.mark.parametrize(
+        'processable, command, control_seq',
+        [
+            (
+                [
+                    'The',
+                    's command',
+                    'as',
+                    'in',
+                    'substitute',
+                    'is',
+                    'probably',
+                    'the',
+                    'most',
+                    'important',
+                    'in',
+                    'sed',
+                    'and',
+                    'has',
+                    'a lot',
+                    'of',
+                    'different',
+                    'options',
+                ],
+                [lambda l: len(l) == 3, lambda l: len(l) == 2],
+                ['The', 'as', 'in', 'is', 'the', 'is', 'sed', 'and', 'has', 'of'],
+            )
+        ],
+    )
+    def test_search_on_file(self, processable, command, control_seq):
+        lines_for_first_file = processable[::2]
+        lines_for_second_file = processable[1::2]
+        with tempfile.NamedTemporaryFile() as first:
+            with tempfile.NamedTemporaryFile() as second:
+                first.write('\n'.join(lines_for_first_file).encode())
+                second.write('\n'.join(lines_for_second_file).encode())
+                first.flush()
+                second.flush()
+                result = list(sed.search([pathlib.Path(first.name), pathlib.Path(second.name)], command))
         self.common_assertion(result, control_seq)
