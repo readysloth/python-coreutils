@@ -2,7 +2,8 @@ import functools
 import itertools
 import pathlib
 import re
-from typing import Callable, FrozenSet, Iterable, List, Optional, Union
+from types import FunctionType
+from typing import Callable, FrozenSet, Iterable, List, Optional, Tuple, Union
 
 import coreutils.sed.utils as utils
 from coreutils.sed import SedException, SedFlags
@@ -12,19 +13,42 @@ Processable = Union[str, Iterable[str], pathlib.Path, Iterable[pathlib.Path]]
 Commands = Union[str, Iterable[str], Processor, Iterable[Processor]]
 Flags = FrozenSet[SedFlags]
 
+SubstituitionProcessor = Union[Tuple[str, str], Tuple[str, Callable[[str], str]]]
+SubstitutionCommands = Union[SubstituitionProcessor, Iterable[SubstituitionProcessor]]
 
-def _cast_commands_to_processors(commands: Commands, flags: Flags) -> Iterable[Processor]:
+
+def _cast_commands_to_processors(
+    commands: Union[Commands, SubstitutionCommands], flags: Flags, action: str = 'search'
+) -> Iterable[Processor]:
     def _compile_regex_search(pattern: str) -> Processor:
+        """
+        Functon compiles regular expression and returns search
+        function.
+        """
         regex = re.compile(pattern, flags=re.IGNORECASE if SedFlags.INSENSITIVE in flags else 0)
         return regex.search  # type: ignore
 
-    if isinstance(commands, str):
-        return [_compile_regex_search(pattern=commands)]
+    def _compile_regex_substitute(pattern: str, repl: Union[str, Callable[[str], str]]) -> Processor:
+        """
+        Functon compiles regular expression and returns substitute
+        function. Substitute function repl argument can be string or function.
+        """
+        regex = re.compile(pattern, flags=re.IGNORECASE if SedFlags.INSENSITIVE in flags else 0)
+        if SedFlags.GLOBAL in flags:
+            return functools.partial(regex.subn, repl=repl)  # type: ignore
+        return functools.partial(regex.subn, repl=repl, count=1)  # type: ignore
 
-    if not isinstance(commands, Iterable):
+    if action == 'search' and isinstance(commands, FunctionType):
         return [commands]
 
-    return [_compile_regex_search(pattern=command) if isinstance(command, str) else command for command in commands]
+    if action == 'search':
+        if isinstance(commands, str):
+            return [_compile_regex_search(pattern=commands)]
+        return [_compile_regex_search(pattern=command) if isinstance(command, str) else command for command in commands]
+    elif action == 'substitution':
+        if isinstance(commands, tuple):
+            return [_compile_regex_substitute(pattern=commands[0], repl=commands[1])]
+        return [_compile_regex_substitute(pattern=command[0], repl=commands[1]) for command in commands]
 
 
 def _aggregate_processable_lines(processable: Processable) -> Iterable[str]:
@@ -62,9 +86,21 @@ def _is_processors_matched(line: str, processors: Iterable[Processor], flags: Fl
 
 
 def substitute(
-    processable: Processable, processors: Iterable[Processor], flags: Flags
-):  # pylint: disable=unused-argument
-    pass
+    processable: Processable, commands: SubstitutionCommands, flags: Flags
+) -> Iterable[str]:  # pylint: disable=unused-argument
+
+    flags = frozenset(flags or set())
+    processors = _cast_commands_to_processors(commands, flags=flags, action='substitution')
+    lines = _aggregate_processable_lines(processable)
+
+    if flags and SedFlags.DELETE in flags and SedFlags.PRINT in flags:
+        raise SedException(flags, 'SedFlags.DELETE and SedFlags.PRINT cannot be used simultaneously')
+
+    for line in lines:
+        substituted_line = line
+        for processor in processors:
+            substituted_line = processor(string=substituted_line)
+        yield substituted_line[0]
 
 
 def search(processable: Processable, commands: Commands, flags: Optional[Flags] = None) -> Iterable[str]:
@@ -97,11 +133,12 @@ def search(processable: Processable, commands: Commands, flags: Optional[Flags] 
         matches.append(line)
     return matches
 
+
 def sed_search(command: str, processable: Processable) -> Iterable[str]:
     """
-    /i'm A\/little paTtErN/Ip
+    /i'm A\\/little paTtErN/Ip
     """
-    command_parse_match = re.match(r"^/(?P<pattern>.*)/(?P<flags>[^/]*)$", command)
+    command_parse_match = re.match(r'^/(?P<pattern>.*)/(?P<flags>[^/]*)$', command)
     pattern = command_parse_match.group('pattern')
-    flags = { utils.FLAGS_MAP[sf] for sf in command_parse_match.group('flags')}
+    flags = {utils.FLAGS_MAP[sf] for sf in command_parse_match.group('flags')}
     return search(processable, pattern, flags)
