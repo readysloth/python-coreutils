@@ -4,6 +4,7 @@ import pathlib
 import re
 from typing import Callable, FrozenSet, Iterable, List, Optional, Union
 
+import coreutils.sed.utils as utils
 from coreutils.sed import SedException, SedFlags
 
 Processor = Callable[[str], bool]
@@ -95,3 +96,12 @@ def search(processable: Processable, commands: Commands, flags: Optional[Flags] 
             matches.append(line)
         matches.append(line)
     return matches
+
+def sed_search(command: str, processable: Processable) -> Iterable[str]:
+    """
+    /i'm A\/little paTtErN/Ip
+    """
+    command_parse_match = re.match(r"^/(?P<pattern>.*)/(?P<flags>[^/]*)$", command)
+    pattern = command_parse_match.group('pattern')
+    flags = { utils.FLAGS_MAP[sf] for sf in command_parse_match.group('flags')}
+    return search(processable, pattern, flags)

@@ -1,6 +1,5 @@
 import enum
 
-
 class SedFlags(enum.Enum):
     GLOBAL = enum.auto()
     PRINT = enum.auto()
@@ -13,6 +12,13 @@ class SedFlags(enum.Enum):
     e = EXECUTE
     I = INSENSITIVE  # noqa
 
+FLAGS_MAP = {
+    'g' : SedFlags.GLOBAL,
+    'd' : SedFlags.DELETE,
+    'p' : SedFlags.PRINT,
+    'e' : SedFlags.EXECUTE,
+    'I' : SedFlags.INSENSITIVE,
+}
 
 class SedException(Exception):
     def __init__(self, expression, message):
