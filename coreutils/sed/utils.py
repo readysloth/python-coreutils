@@ -7,11 +7,13 @@ class SedFlags(enum.Enum):
     EXECUTE = enum.auto()
     INSENSITIVE = enum.auto()
     DELETE = enum.auto()
+    INPLACE = enum.auto()
     g = GLOBAL
     d = DELETE
     p = PRINT
     e = EXECUTE
     I = INSENSITIVE  # noqa
+    i = INPLACE
 
 
 FLAGS_MAP = {
@@ -20,6 +22,7 @@ FLAGS_MAP = {
     'p': SedFlags.PRINT,
     'e': SedFlags.EXECUTE,
     'I': SedFlags.INSENSITIVE,
+    'i': SedFlags.INPLACE,
 }
 
 

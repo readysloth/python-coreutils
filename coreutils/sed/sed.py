@@ -84,6 +84,9 @@ def _is_processors_matched(line: str, processors: Iterable[Processor], flags: Fl
             return True
     return False
 
+def _check_flags(flags: Flags):
+    if flags and SedFlags.DELETE in flags and SedFlags.PRINT in flags:
+        raise SedException(flags, 'SedFlags.DELETE and SedFlags.PRINT cannot be used simultaneously')
 
 def substitute(
     processable: Processable, commands: SubstitutionCommands, flags: Flags
@@ -93,13 +96,14 @@ def substitute(
     processors = _cast_commands_to_processors(commands, flags=flags, action='substitution')
     lines = _aggregate_processable_lines(processable)
 
-    if flags and SedFlags.DELETE in flags and SedFlags.PRINT in flags:
-        raise SedException(flags, 'SedFlags.DELETE and SedFlags.PRINT cannot be used simultaneously')
+    _check_flags(flags)
 
     for line in lines:
         substituted_line = line
         for processor in processors:
             substituted_line = processor(string=substituted_line)
+        if SedFlags.PRINT in flags:
+            yield substituted_line[0]
         yield substituted_line[0]
 
 
@@ -114,8 +118,7 @@ def search(processable: Processable, commands: Commands, flags: Optional[Flags] 
     processors = _cast_commands_to_processors(commands, flags=flags)
     lines = _aggregate_processable_lines(processable)
 
-    if flags and SedFlags.DELETE in flags and SedFlags.PRINT in flags:
-        raise SedException(flags, 'SedFlags.DELETE and SedFlags.PRINT cannot be used simultaneously')
+    _check_flags(flags)
 
     match_lines, filter_lines = itertools.tee(lines, 2)
     is_matched_strings = (
@@ -142,3 +145,8 @@ def sed_search(command: str, processable: Processable) -> Iterable[str]:
     pattern = command_parse_match.group('pattern')
     flags = {utils.FLAGS_MAP[sf] for sf in command_parse_match.group('flags')}
     return search(processable, pattern, flags)
+
+def sed_substitute(command: str, processable: Processable) -> Iterable[str]:
+    """
+    """
+    pass
