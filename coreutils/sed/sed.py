@@ -136,7 +136,6 @@ def search(processable: Processable, commands: Commands, flags: Optional[Flags] 
         matches.append(line)
     return matches
 
-
 def sed_search(command: str, processable: Processable) -> Iterable[str]:
     """
     /i'm A\\/little paTtErN/Ip
@@ -148,5 +147,28 @@ def sed_search(command: str, processable: Processable) -> Iterable[str]:
 
 def sed_substitute(command: str, processable: Processable) -> Iterable[str]:
     """
+    s@i'm a li[t]{2}le pattern@now i'm substituted@g
     """
-    pass
+    def verify_separator():
+        generic_solve = 'Use unique separator.'
+        separator_error = None
+        if separator in pattern:
+            separator_error = 'Separator used in pattern.'
+        if separator in substitution:
+            separator_error = 'Separator used in substitution string.'
+        if separator in str_flags:
+            separator_error = 'Separator used in flags.'
+
+        if separator_error:
+            raise SedException(command, '{} {}'.format(separator_error, generic_solve))
+
+    command_parse_match = re.match(r'^s(?P<separator>.)(?P<pattern>.*)(?P=separator)(?P<substitution>.*)(?P=separator)(?P<flags>.*)$', command)
+    pattern = command_parse_match.group('pattern')
+    separator = command_parse_match.group('separator')
+    substitution = command_parse_match.group('substitution')
+    str_flags = command_parse_match.group('flags')
+    verify_separator()
+
+    flags = {utils.FLAGS_MAP[sf] for sf in str_flags}
+
+    return substitute(processable, (pattern, substitution), flags)
