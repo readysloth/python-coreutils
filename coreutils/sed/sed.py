@@ -90,22 +90,55 @@ def _check_flags(flags: Flags):
 
 def substitute(
     processable: Processable, commands: SubstitutionCommands, flags: Flags
-) -> Iterable[str]:  # pylint: disable=unused-argument
+) -> Union[Iterable[str], None]:  # pylint: disable=unused-argument
+    """
+    Print flag doubles successfull substitution
+    """
+    def make_substitutions_on_line(line: str, processors) -> str:
+        substituted_line = line
+        for processor in processors:
+            substituted_line = processor(string=substituted_line)
+        return substituted_line
+
 
     flags = frozenset(flags or set())
     processors = _cast_commands_to_processors(commands, flags=flags, action='substitution')
+    lines = None
+
+    processable = list(processable)
+    if SedFlags.INPLACE in flags:
+        file_to_lines = { }
+        processing_files = isinstance(processable[0], pathlib.Path)
+        if processing_files:
+            for proc_able in processable:
+                if not isinstance(proc_able, pathlib.Path):
+                    raise SedException(processable, "If {}'s supplied as processable, no other types allowed between them".format(pathlib.Path))
+
+                lines = _aggregate_processable_lines(proc_able)
+                file_to_lines[proc_able] = []
+                for line in lines:
+                    substituted_line = make_substitutions_on_line(line, processors)
+                    if SedFlags.PRINT in flags and substituted_line[1]:
+                        file_to_lines[proc_able].append(substituted_line[0])
+                    file_to_lines[proc_able].append(substituted_line[0])
+
+            for file in file_to_lines:
+                with open(file.resolve, 'w') as f:
+                    f.writelines(file_to_lines[file])
+        else:
+            raise SedException(None, "Inplace substitution on types other than files is not implemented")
+
+        return
+
     lines = _aggregate_processable_lines(processable)
 
     _check_flags(flags)
 
     for line in lines:
-        substituted_line = line
-        for processor in processors:
-            substituted_line = processor(string=substituted_line)
-        if SedFlags.PRINT in flags:
+        substituted_line = make_substitutions_on_line(line, processors)
+        if SedFlags.PRINT in flags and substituted_line[1]:
             yield substituted_line[0]
         yield substituted_line[0]
-
 
 def search(processable: Processable, commands: Commands, flags: Optional[Flags] = None) -> Iterable[str]:
     """
