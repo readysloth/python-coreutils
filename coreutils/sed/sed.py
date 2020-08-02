@@ -100,12 +100,14 @@ def substitute(
             substituted_line = processor(string=substituted_line)
         return substituted_line
 
-
     flags = frozenset(flags or set())
     processors = _cast_commands_to_processors(commands, flags=flags, action='substitution')
     lines = None
 
-    processable = list(processable)
+    if isinstance(processable, pathlib.Path):
+        processable = [processable]
+    else:
+        processable = list(processable)
     if SedFlags.INPLACE in flags:
         file_to_lines = { }
         processing_files = isinstance(processable[0], pathlib.Path)
@@ -123,8 +125,9 @@ def substitute(
                     file_to_lines[proc_able].append(substituted_line[0])
 
             for file in file_to_lines:
-                with open(file.resolve, 'w') as f:
-                    f.writelines(file_to_lines[file])
+                with open(file.resolve(), 'w') as f:
+                    f.writelines('\n'.join(file_to_lines[file]))
+                    f.flush()
         else:
             raise SedException(None, "Inplace substitution on types other than files is not implemented")
 
@@ -134,11 +137,14 @@ def substitute(
 
     _check_flags(flags)
 
+
+    substitutions = []
     for line in lines:
         substituted_line = make_substitutions_on_line(line, processors)
         if SedFlags.PRINT in flags and substituted_line[1]:
-            yield substituted_line[0]
-        yield substituted_line[0]
+            substitutions.append(substituted_line[0])
+        substitutions.append(substituted_line[0])
+    return substitutions
 
 def search(processable: Processable, commands: Commands, flags: Optional[Flags] = None) -> Iterable[str]:
     """
