@@ -33,7 +33,6 @@ def test_match_command(command, expected):
         (None, True),
         (SedFlags.GLOBAL, False),
         (SedFlags.PRINT, False),
-        (SedFlags.EXECUTE, False),
         (SedFlags.INSENSITIVE, False),
         (SedFlags.DELETE, False),
     ],
@@ -50,7 +49,7 @@ def test_match_with_flag(flag, expected):
     'flags, expected',
     [
         (frozenset({SedFlags.GLOBAL, SedFlags.PRINT}), False),
-        (frozenset({SedFlags.DELETE, SedFlags.EXECUTE, SedFlags.INSENSITIVE}), False),
+        (frozenset({SedFlags.DELETE, SedFlags.INSENSITIVE}), False),
     ],
 )
 def test_match_with_several_flags(flags, expected):

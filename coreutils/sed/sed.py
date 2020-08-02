@@ -19,7 +19,10 @@ SubstitutionCommands = Union[SubstituitionProcessor, Iterable[SubstituitionProce
 
 def _cast_commands_to_processors(
     commands: Union[Commands, SubstitutionCommands], flags: Flags, action: str = 'search'
-) -> Iterable[Processor]:
+) -> List[Processor]:
+    """
+    Generic functon to handle different processor types.
+    """
     def _compile_regex_search(pattern: str) -> Processor:
         """
         Functon compiles regular expression and returns search
@@ -52,7 +55,13 @@ def _cast_commands_to_processors(
 
 
 def _aggregate_processable_lines(processable: Processable) -> Iterable[str]:
-    def _process_file(path: pathlib.Path) -> Iterable[str]:
+    """
+    Generic function to handle different processable types.
+    """
+    def _process_file(path: pathlib.Path) -> List[str]:
+        """
+        If it's file processable, then return list of file lines
+        """
         return path.read_text().splitlines()
 
     if isinstance(processable, str):
@@ -72,6 +81,10 @@ def _aggregate_processable_lines(processable: Processable) -> Iterable[str]:
 
 @functools.lru_cache(typed=True)
 def _match_line(line: str, processor: Processor, flags: Flags) -> bool:
+    """
+    Checks one processor (condition) at a time.
+    Returns match according to DELETE flag.
+    """
     is_match = processor(line)
     if SedFlags.DELETE in flags:
         return not is_match
@@ -79,12 +92,18 @@ def _match_line(line: str, processor: Processor, flags: Flags) -> bool:
 
 
 def _is_processors_matched(line: str, processors: Iterable[Processor], flags: Flags) -> bool:
+    """
+    We must chek all supplied processors (conditions) on processed string.
+    """
     for processor in processors:
         if _match_line(line, processor, flags=flags):
             return True
     return False
 
 def _check_flags(flags: Flags):
+    """
+    If PRINT flag and DELETE flag are both used, then raise exception
+    """
     if flags and SedFlags.DELETE in flags and SedFlags.PRINT in flags:
         raise SedException(flags, 'SedFlags.DELETE and SedFlags.PRINT cannot be used simultaneously')
 
@@ -92,9 +111,14 @@ def substitute(
     processable: Processable, commands: SubstitutionCommands, flags: Flags
 ) -> Union[Iterable[str], None]:  # pylint: disable=unused-argument
     """
-    Print flag doubles successfull substitution
+    Substitute can take *processable* of and apply regular expression or predicate
+    to every string in *processable*, returning list of matched strings.
+    Can take sed flags to modify match behaviour.
     """
     def make_substitutions_on_line(line: str, processors) -> str:
+        """
+        Makes all substitutions on supplied line and returns it.
+        """
         substituted_line = line
         for processor in processors:
             substituted_line = processor(string=substituted_line)
@@ -109,12 +133,13 @@ def substitute(
     else:
         processable = list(processable)
     if SedFlags.INPLACE in flags:
-        file_to_lines = { }
+        file_to_lines = {}
         processing_files = isinstance(processable[0], pathlib.Path)
         if processing_files:
             for proc_able in processable:
                 if not isinstance(proc_able, pathlib.Path):
-                    raise SedException(processable, "If {}'s supplied as processable, no other types allowed between them".format(pathlib.Path))
+                    raise SedException(processable,
+                                       "If {}'s supplied as processable, no other types allowed between them".format(pathlib.Path))
 
                 lines = _aggregate_processable_lines(proc_able)
                 file_to_lines[proc_able] = []
@@ -146,11 +171,10 @@ def substitute(
         substitutions.append(substituted_line[0])
     return substitutions
 
-def search(processable: Processable, commands: Commands, flags: Optional[Flags] = None) -> Iterable[str]:
+def search(processable: Processable, commands: Commands, flags: Optional[Flags] = None) -> List[str]:
     """
-    Search takes iterable or path to file and applies regular expression (can be iterable of
-    regular expressions), or predicate (can be iterable of predicates) to every string in iterable or file,
-    returning iterator of filtered strings.
+    Search can take *processable* and apply regular expression or predicate
+    to every string in *processable*, returning list of matched strings.
     Can take sed flags to modify match behaviour.
     """
     flags = frozenset(flags or set())
@@ -175,18 +199,25 @@ def search(processable: Processable, commands: Commands, flags: Optional[Flags] 
         matches.append(line)
     return matches
 
-def sed_search(command: str, processable: Processable) -> Iterable[str]:
+def sed_search(command: str, processable: Processable) -> List[str]:
     """
-    /i'm A\\/little paTtErN/Ip
+    Wrapper around `search` function.
+    Takes command string and applies it to processable,
+    returning list of matched strings.
+    For more versatile use, use `search` function instead.
     """
     command_parse_match = re.match(r'^/(?P<pattern>.*)/(?P<flags>[^/]*)$', command)
     pattern = command_parse_match.group('pattern')
     flags = {utils.FLAGS_MAP[sf] for sf in command_parse_match.group('flags')}
     return search(processable, pattern, flags)
 
-def sed_substitute(command: str, processable: Processable) -> Iterable[str]:
+def sed_substitute(command: str, processable: Processable) -> Union[List[str], None]:
     """
-    s@i'm a li[t]{2}le pattern@now i'm substituted@g
+    Wrapper around `substitute` function.
+    Takes command string and applies it to processable,
+    returning list of substituted strings
+    (or, if makes changes inplace, then returns `None`).
+    For more versatile use, use `substitute` function instead.
     """
     def verify_separator():
         generic_solve = 'Use unique separator.'
